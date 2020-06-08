@@ -89,8 +89,8 @@ pipeline-manifest/_clone: %_clone:
 	then $(SELF) -s pipeline-manifest/_pull; \
 	else $(GIT) clone -b $(PIPELINE_MANIFEST_GIT_BRANCH) $(PIPELINE_MANIFEST_GIT_URL) $(PIPELINE_MANIFEST_DIR); \
 	fi
-	@cd $(PIPELINE_MANIFEST_DIR); $(GIT) config --global user.email "acm-cicd@redhat.com"
-	@cd $(PIPELINE_MANIFEST_DIR); $(GIT) config --global user.name "ACM CICD"
+	@cd $(PIPELINE_MANIFEST_DIR); $(GIT) config user.email "acm-cicd@redhat.com"
+	@cd $(PIPELINE_MANIFEST_DIR); $(GIT) config user.name "ACM CICD"
 
 .PHONY: pipeline-manifest/_pull
 # Pull the configured pipeline manifest repo
