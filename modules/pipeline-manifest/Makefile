@@ -85,6 +85,8 @@ pipeline-manifest/_sort: %_sort:
 .PHONY: pipeline-manifest/_clone
 # Clone the configured pipeline manifest repo
 pipeline-manifest/_clone: %_clone:
+	@cd $(PIPELINE_MANIFEST_DIR); $(GIT) config --global user.email "acm-cicd@redhat.com"
+	@cd $(PIPELINE_MANIFEST_DIR); $(GIT) config --global user.name "ACM CICD"
 	@if [ -d $(PIPELINE_MANIFEST_DIR) ];  \
 	then $(SELF) -s pipeline-manifest/_pull; \
 	else $(GIT) clone -b $(PIPELINE_MANIFEST_GIT_BRANCH) $(PIPELINE_MANIFEST_GIT_URL) $(PIPELINE_MANIFEST_DIR); \
