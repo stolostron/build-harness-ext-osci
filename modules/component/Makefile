@@ -2,12 +2,12 @@
 COMPONENT_TYPE ?= component
 
 # Full path to this modules' scripts bin directory.
-COMPONENT_SCRIPTS_PATH ?= ${BUILD_HARNESS_PATH}/../build-harness-extensions/modules/component/bin/${COMPONENT_TYPE}
+COMPONENT_SCRIPTS_PATH ?= ${BUILD_HARNESS_EXTENSIONS_PATH}//modules/component/bin/${COMPONENT_TYPE}
 
 # Find component name and component version from repo artifacts
-COMPONENT_NAME ?= $(shell cat ${BUILD_HARNESS_PATH}/../COMPONENT_NAME 2> /dev/null)
-COMPONENT_VERSION ?= $(shell cat ${BUILD_HARNESS_PATH}/../COMPONENT_VERSION 2> /dev/null)
-COMPONENT_TAG_EXTENSION ?= -${TRAVIS_COMMIT}
+COMPONENT_NAME ?= $(shell cat COMPONENT_NAME 2> /dev/null)
+COMPONENT_VERSION ?= $(shell cat COMPONENT_VERSION 2> /dev/null)
+COMPONENT_TAG_EXTENSION ?= -${PULL_BASE_SHA}
 
 # Build the details for the remote destination repo for the image
 COMPONENT_DOCKER_REPO ?= quay.io/open-cluster-management
