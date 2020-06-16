@@ -4,22 +4,22 @@
 #
 # https://github.com/kubernetes/test-infra/blob/master/prow/jobs.md#job-environment-variables
 #
-PIPELINE_MANIFEST_COMPONENT_REPO := ${REPO_OWNER}/${REPO_NAME}
-PIPELINE_MANIFEST_BRANCH := ${PULL_BASE_REF}
-PIPELINE_MANIFEST_COMPONENT_SHA256 := ${PULL_BASE_SHA}
+PIPELINE_MANIFEST_COMPONENT_REPO ?= ${REPO_OWNER}/${REPO_NAME}
+PIPELINE_MANIFEST_BRANCH ?= ${PULL_BASE_REF}
+PIPELINE_MANIFEST_COMPONENT_SHA256 ?= ${PULL_BASE_SHA}
 
 # May or may not be in github enterprise
 PIPELINE_MANIFEST_SITE ?= github.com
 # May be in RedHat main org or in some ACM specific org
 PIPELINE_MANIFEST_ORG ?= open-cluster-management
 # Repo name not yet confirmed
-PIPELINE_MANIFEST_REPO?= pipeline
+PIPELINE_MANIFEST_REPO ?= pipeline
 # The URL for the pipeline repo
 PIPELINE_MANIFEST_GIT_URL ?= "https://$(GITHUB_USER):$(GITHUB_TOKEN)@$(PIPELINE_MANIFEST_SITE)/$(PIPELINE_MANIFEST_ORG)/$(PIPELINE_MANIFEST_REPO).git"
 # Branch of release component is on, i.e release-1.0.0
 PIPELINE_MANIFEST_COMPONENT_BRANCH ?= $(PIPELINE_MANIFEST_BRANCH)
 # Release version of the product
-PIPELINE_MANIFEST_RELEASE_VERSION ?= $(subst release-,,$(PIPELINE_MANIFEST_BRANCH))
+PIPELINE_MANIFEST_RELEASE_VERSION ?= $(subst release-,,$(PIPELINE_MANIFEST_COMPONENT_BRANCH))
 # Release version of the product based on the branch it came from
 PIPELINE_MANIFEST_SHA_RELEASE_VERSION ?= $(PIPELINE_MANIFEST_RELEASE_VERSION)
 # Directory to put manifest in
