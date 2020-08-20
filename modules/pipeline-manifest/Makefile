@@ -139,10 +139,13 @@ pipeline-manifest/update: %update: %_clone %_update
 pipeline-manifest/_update: %_update:
 	$(call assert-set,COMPONENT_NAME)
 	$(call assert-set,COMPONENT_VERSION)
+	@echo Waiting 5 minutes for post commit images job to finish. Starting at `date`
+	@sleep 300
+	@echo Done waiting at `date`
 	@if [[ -z `$(SELF) -s pipeline-manifest/_read_alias` ]]; \
 	then echo "Component $(PIPELINE_MANIFEST_COMPONENT) does not have an entry in $(PIPELINE_MANIFEST_ALIAS_FILE_NAME).json" ; echo "Failing the build." ; exit 1; \
 	else echo "Component $(PIPELINE_MANIFEST_COMPONENT) has an entry in $(PIPELINE_MANIFEST_ALIAS_FILE_NAME).json."; \
-        fi
+    fi
 	@if [ -z "$(SELF) -s pipeline-manifest/_read" ]; \
 	then $(SELF) pipeline-manifest/_add; \
 	else $(SELF) pipeline-manifest/_replace REPLACED_COMPONENT=$(PIPELINE_MANIFEST_COMPONENT); \
