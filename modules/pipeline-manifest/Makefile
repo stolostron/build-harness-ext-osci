@@ -40,6 +40,8 @@ PIPELINE_MANIFEST_LATEST_BRANCH ?= 2.0-edge
 # The Z release of the pipeline to use for grabbing the latest manifest file
 PIPELINE_MANIFEST_LATEST_Z_RELEASE ?= 2.0.0
 PIPELINE_MANIFEST_REMOTE_REPO ?= quay.io/open-cluster-management
+PIPELINE_MANIFEST_REMOTE_REPO_SRC ?= $(PIPELINE_MANIFEST_REMOTE_REPO)
+PIPELINE_MANIFEST_REMOTE_REPO_DST ?= quay.io/open-cluster-management
 
 PIPELINE_MANIFEST_COMPONENT_SUFFIX ?= $(PIPELINE_MANIFEST_COMPONENT_SHA256)
 
@@ -51,7 +53,7 @@ PM_MANIFEST_QUERY ?= .[] |select(.["image-name"] == "$(PIPELINE_MANIFEST_COMPONE
 PM_IMAGE_REMOTE_QUERY ?= .[] |select(.["image-name"] == "$(PIPELINE_MANIFEST_COMPONENT)") | .["image-remote"]
 PM_IMAGE_VERSION_QUERY ?= .[] |select(.["image-name"] == "$(PIPELINE_MANIFEST_COMPONENT)") | .["image-version"]
 PM_GIT_SHA_QUERY ?= .[] |select(.["image-name"] == "$(PIPELINE_MANIFEST_COMPONENT)") | .["git-sha256"]
-PM_ADDITION_QUERY ?= .[. | length] |= . + {"image-name": "$(PIPELINE_MANIFEST_COMPONENT)", "image-version": "$(PIPELINE_MANIFEST_COMPONENT_VERSION)", "image-tag": "$(PIPELINE_MANIFEST_COMPONENT_TAG)", "git-sha256": "$(PIPELINE_MANIFEST_COMPONENT_SHA256)", "git-repository": "$(PIPELINE_MANIFEST_COMPONENT_REPO)",  "image-remote": "$(PIPELINE_MANIFEST_REMOTE_REPO)"}
+PM_ADDITION_QUERY ?= .[. | length] |= . + {"image-name": "$(PIPELINE_MANIFEST_COMPONENT)", "image-version": "$(PIPELINE_MANIFEST_COMPONENT_VERSION)", "image-tag": "$(PIPELINE_MANIFEST_COMPONENT_TAG)", "git-sha256": "$(PIPELINE_MANIFEST_COMPONENT_SHA256)", "git-repository": "$(PIPELINE_MANIFEST_COMPONENT_REPO)",  "image-remote": "$(PIPELINE_MANIFEST_REMOTE_REPO_DST)", "image-remote-src": "$(PIPELINE_MANIFEST_REMOTE_REPO_SRC)"}
 PM_DELETION_QUERY ?= .[] | select(.["image-name"] != "$(DELETED_COMPONENT)")
 PM_SORT_QUERY ?= . | sort_by(.["image-name"])
 
@@ -139,13 +141,13 @@ pipeline-manifest/update: %update: %_clone %_update
 pipeline-manifest/_update: %_update:
 	$(call assert-set,COMPONENT_NAME)
 	$(call assert-set,COMPONENT_VERSION)
-	@echo Waiting 5 minutes for post commit images job to finish. Starting at `date`
-	@sleep 300
-	@echo Done waiting at `date`
 	@if [[ -z `$(SELF) -s pipeline-manifest/_read_alias` ]]; \
 	then echo "Component $(PIPELINE_MANIFEST_COMPONENT) does not have an entry in $(PIPELINE_MANIFEST_ALIAS_FILE_NAME).json" ; echo "Failing the build." ; exit 1; \
 	else echo "Component $(PIPELINE_MANIFEST_COMPONENT) has an entry in $(PIPELINE_MANIFEST_ALIAS_FILE_NAME).json."; \
     fi
+	@echo Waiting 5 minutes for post commit images job to finish. Starting at `date`
+	@sleep 300
+	@echo Done waiting at `date`
 	@if [ -z "$(SELF) -s pipeline-manifest/_read" ]; \
 	then $(SELF) pipeline-manifest/_add; \
 	else $(SELF) pipeline-manifest/_replace REPLACED_COMPONENT=$(PIPELINE_MANIFEST_COMPONENT); \
