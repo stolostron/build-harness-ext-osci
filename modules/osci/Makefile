@@ -21,6 +21,7 @@ OSCI_PIPELINE_SITE ?= github.com
 OSCI_PIPELINE_ORG ?= open-cluster-management
 OSCI_PIPELINE_REPO ?= pipeline
 OSCI_PIPELINE_STAGE ?= integration
+OSCI_PIPELINE_RETAG_BRANCH ?= quay-retag
 OSCI_PIPELINE_PROMOTE_FROM ?= $(OSCI_PIPELINE_STAGE)
 OSCI_PIPELINE_PROMOTE_TO ?=
 OSCI_PIPELINE_GIT_BRANCH ?= $(OSCI_RELEASE_VERSION)-$(OSCI_PIPELINE_PROMOTE_FROM)
@@ -28,15 +29,17 @@ OSCI_PIPELINE_GIT_URL ?= "https://$(GITHUB_USER):$(GITHUB_TOKEN)@$(OSCI_PIPELINE
 
 OSCI_MANIFEST_DIR ?= $(OSCI_PIPELINE_REPO)
 OSCI_MANIFEST_BASENAME ?= manifest
-OSCI_MANIFEST_FILENAME ?= $(OSCI_MANIFEST_DIR)/$(OSCI_MANIFEST_BASENAME).json
+OSCI_MANIFEST_FILENAME ?= $(OSCI_MANIFEST_BASENAME).json
 OSCI_IMAGE_ALIAS_BASENAME ?= image-alias
-OSCI_IMAGE_ALIAS_FILENAME ?= $(OSCI_MANIFEST_DIR)/$(OSCI_IMAGE_ALIAS_BASENAME).json
+OSCI_IMAGE_ALIAS_FILENAME ?= $(OSCI_IMAGE_ALIAS_BASENAME).json
 OSCI_MANIFEST_SNAPSHOT_DIR ?= snapshots
 
 OSCI_IMAGE_REMOTE_REPO ?= quay.io/open-cluster-management
 OSCI_IMAGE_REMOTE_REPO_SRC ?= $(OSCI_IMAGE_REMOTE_REPO)
 OSCI_IMAGE_REMOTE_REPO_DST ?= $(OSCI_IMAGE_REMOTE_REPO)
 
+OSCI_GIT_USER_NAME ?= "ACM CICD"
+OSCI_GIT_USER_EMAIL ?= "acm-cicd@redhat.com"
 OSCI_GIT_MESSAGE ?= Added or Updated $(OSCI_COMPONENT_NAME)
 
 OSCI_REPLACED_COMPONENT ?=
@@ -47,10 +50,23 @@ OSCI_ADDITION_QUERY ?= .[. | length] |= . + {"image-name": "$(OSCI_COMPONENT_NAM
 OSCI_DELETION_QUERY ?= .[] | select(.["image-name"] != "$(OSCI_DELETED_COMPONENT)")
 OSCI_SORT_QUERY ?= . | sort_by(.["image-name"])
 
+OSCI_DATETIME := $(shell (date +%Y-%m-%d-%H-%M-%S))
+
+OSCI_Z_RELEASE_VERSION ?= $(shell curl -H "Authorization: token ${GITHUB_TOKEN}" -H "Accept: application/vnd.github.v3.raw" https://raw.githubusercontent.com/open-cluster-management/release/${OSCI_COMPONENT_BRANCH}/Z_RELEASE_VERSION)
+
+
+.PHONY: osci/_datetime_gen
+# Factory method for storing datetime variable
+osci/_datetime_gen: %_datetime_gen:
+	@if [ -f DATETIME ]; \
+	then cat DATETIME; \
+	else echo $(OSCI_DATETIME) > DATETIME; \
+	fi;
+
 .PHONY: osci/_sort
 # Parse the configured pipeline manifest repo
 osci/_sort: %_sort:
-	@$(JQ) '$(OSCI_SORT_QUERY)' $(OSCI_MANIFEST_FILENAME) > tmp; mv tmp $(OSCI_MANIFEST_FILENAME)
+	@$(JQ) '$(OSCI_SORT_QUERY)' $(OSCI_MANIFEST_DIR)/$(OSCI_MANIFEST_FILENAME) > tmp; mv tmp $(OSCI_MANIFEST_DIR)/$(OSCI_MANIFEST_FILENAME)
 
 .PHONY: osci/_pull
 # Pull the configured pipeline repo
@@ -64,8 +80,26 @@ osci/_clone: %_clone:
 	then $(SELF) -s osci/_pull; \
 	else $(GIT) clone -b $(OSCI_PIPELINE_GIT_BRANCH) $(OSCI_PIPELINE_GIT_URL) $(OSCI_MANIFEST_DIR); \
 	fi
-	@cd $(OSCI_MANIFEST_DIR); $(GIT) config user.email "acm-cicd@redhat.com"
-	@cd $(OSCI_MANIFEST_DIR); $(GIT) config user.name "ACM CICD"
+	@cd $(OSCI_MANIFEST_DIR); $(GIT) config user.email $(OSCI_GIT_USER_EMAIL)
+	@cd $(OSCI_MANIFEST_DIR); $(GIT) config user.name $(OSCI_GIT_USER_NAME)
+
+.PHONY: osci/_snapshot-staging
+# Stage snapshot of current repo.
+osci/_snapshot-staging: %_snapshot-staging: %_clone
+	@$(SELF) osci/_datetime_gen
+	@cp $(OSCI_MANIFEST_DIR)/$(OSCI_MANIFEST_FILENAME) $(OSCI_MANIFEST_FILENAME)
+	@cp $(OSCI_MANIFEST_DIR)/$(OSCI_IMAGE_ALIAS_FILENAME) $(OSCI_IMAGE_ALIAS_FILENAME)
+	@cd $(OSCI_MANIFEST_DIR); git checkout $(OSCI_PIPELINE_RETAG_BRANCH)
+	@echo $(OSCI_PIPELINE_GIT_BRANCH) > $(OSCI_MANIFEST_DIR)/ORIGIN_BRANCH
+	@echo $(OSCI_RELEASE_VERSION) > $(OSCI_MANIFEST_DIR)/RELEASE_VERSION
+	@echo $(OSCI_Z_RELEASE_VERSION) > $(OSCI_MANIFEST_DIR)/Z_RELEASE_VERSION
+	@echo $(OSCI_COMPONENT_NAME) > $(OSCI_MANIFEST_DIR)/COMPONENT_NAME
+	@cat DATETIME > $(OSCI_MANIFEST_DIR)/TAG
+	@cp $(OSCI_MANIFEST_FILENAME) $(OSCI_MANIFEST_DIR)/$(OSCI_MANIFEST_FILENAME)
+	@cp $(OSCI_IMAGE_ALIAS_FILENAME) $(OSCI_MANIFEST_DIR)/$(OSCI_IMAGE_ALIAS_FILENAME)
+	@cd $(OSCI_MANIFEST_DIR); $(GIT) commit -am "Stage $(OSCI_Z_RELEASE_VERSION) snapshot of $(OSCI_COMPONENT_NAME)-$(OSCI_COMPONENT_SUFFIX)" --quiet
+	@cd $(OSCI_MANIFEST_DIR); $(GIT) push --quiet
+
 
 .PHONY: osci/_push
 # Push the configured pipeline manifest repo
@@ -78,12 +112,12 @@ osci/_push: %_push: %_clone
 .PHONY: osci/_read_alias
 # Locate the component name in the alias json
 osci/_read_alias: %_read_alias: %_clone
-	@$(JQ) '$(OSCI_MANIFEST_QUERY)' $(OSCI_IMAGE_ALIAS_FILENAME)
+	@$(JQ) '$(OSCI_MANIFEST_QUERY)' $(OSCI_MANIFEST_DIR)/$(OSCI_IMAGE_ALIAS_FILENAME)
 
 .PHONY: osci/_read
 # Parse the configured pipeline manifest repo
 osci/_read: %_read: %_clone
-	@$(JQ) '$(OSCI_MANIFEST_QUERY)' $(OSCI_MANIFEST_FILENAME)
+	@$(JQ) '$(OSCI_MANIFEST_QUERY)' $(OSCI_MANIFEST_DIR)/$(OSCI_MANIFEST_FILENAME)
 
 .PHONY: osci/add
 # Add component named $OSCI_COMPONENT_NAME at version $OSCI_COMPONENT_VERSION to the pipeline manifest in stage $OSCI_PIPELINE_STAGE
@@ -97,7 +131,7 @@ osci/_add: %_add:
 	$(call assert-set,OSCI_COMPONENT_VERSION)
 	$(call assert-set,OSCI_COMPONENT_REPO)
 	$(call assert-set,OSCI_COMPONENT_SHA256)
-	@$(JQ) '$(OSCI_ADDITION_QUERY)' $(OSCI_MANIFEST_FILENAME) > tmp; mv tmp $(OSCI_MANIFEST_FILENAME)
+	@$(JQ) '$(OSCI_ADDITION_QUERY)' $(OSCI_MANIFEST_DIR)/$(OSCI_MANIFEST_FILENAME) > tmp; mv tmp $(OSCI_MANIFEST_DIR)/$(OSCI_MANIFEST_FILENAME)
 
 .PHONY: osci/replace
 ## Remove component named $OSCI_REPLACED_COMPONENT and add component named $OSCI_COMPONENT_NAME at version $OSCI_COMPONENT_VERSION in stage $OSCI_PIPELINE_STAGE
@@ -122,7 +156,7 @@ osci/delete: %delete: %_clone %_delete
 # Remove component named $OSCI_DELETED_COMPONENT from $OSCI_PIPELINE_STAGE's manifest pipeline
 osci/_delete: %_delete:
 	$(call assert-set,OSCI_DELETED_COMPONENT)
-	@$(JQ) '[$(OSCI_DELETION_QUERY)]' $(OSCI_MANIFEST_FILENAME) > tmp; mv tmp $(OSCI_MANIFEST_FILENAME)
+	@$(JQ) '[$(OSCI_DELETION_QUERY)]' $(OSCI_MANIFEST_DIR)/$(OSCI_MANIFEST_FILENAME) > tmp; mv tmp $(OSCI_MANIFEST_DIR)/$(OSCI_MANIFEST_FILENAME)
 
 .PHONY: osci/publish
 ## Add or update component $OSCI_COMPONENT_NAME to have version $OSCI_COMPONENT_VERSION in the pipeline manifest in stage $OSCI_PIPELINE_STAGE
@@ -136,8 +170,8 @@ osci/_publish: %_publish:
 	$(call assert-set,OSCI_COMPONENT_NAME)
 	$(call assert-set,OSCI_COMPONENT_VERSION)
 	@if [[ -z `$(SELF) -s osci/_read_alias` ]]; \
-	then echo "Component $(OSCI_COMPONENT_NAME) does not have an entry in $(OSCI_IMAGE_ALIAS_FILENAME).json" ; echo "Failing the build." ; exit 1; \
-	else echo "Component $(OSCI_COMPONENT_NAME) has an entry in $(OSCI_IMAGE_ALIAS_FILENAME).json."; \
+	then echo "Component $(OSCI_COMPONENT_NAME) does not have an entry in $(OSCI_MANIFEST_DIR)/$(OSCI_IMAGE_ALIAS_FILENAME)" ; echo "Failing the build." ; exit 1; \
+	else echo "Component $(OSCI_COMPONENT_NAME) has an entry in $(OSCI_MANIFEST_DIR)/$(OSCI_IMAGE_ALIAS_FILENAME)"; \
 	fi
 	@echo Waiting 5 minutes for post commit images job to finish. Starting at `date`
 	@sleep 300
