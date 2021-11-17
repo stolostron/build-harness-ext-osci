@@ -14,12 +14,14 @@ PIPELINE_MANIFEST_SITE ?= github.com
 PIPELINE_MANIFEST_ORG ?= open-cluster-management
 # Repo name not yet confirmed
 PIPELINE_MANIFEST_REPO ?= pipeline
+# The "product" name that is used for release repo; release=RHACM, backplane=backplane
+PIPELINE_PRODUCT_PREFIX ?= release
 # The URL for the pipeline repo
 PIPELINE_MANIFEST_GIT_URL ?= "https://$(GITHUB_USER):$(GITHUB_TOKEN)@$(PIPELINE_MANIFEST_SITE)/$(PIPELINE_MANIFEST_ORG)/$(PIPELINE_MANIFEST_REPO).git"
 # Branch of release component is on, i.e release-1.0.0
 PIPELINE_MANIFEST_COMPONENT_BRANCH ?= $(PIPELINE_MANIFEST_BRANCH)
 # Release version of the product
-PIPELINE_MANIFEST_RELEASE_VERSION ?= $(subst release-,,$(PIPELINE_MANIFEST_BRANCH))
+PIPELINE_MANIFEST_RELEASE_VERSION ?= $(subst $(PIPELINE_PRODUCT_PREFIX)-,,$(PIPELINE_MANIFEST_BRANCH))
 # Release version of the product based on the branch it came from
 PIPELINE_MANIFEST_SHA_RELEASE_VERSION ?= $(PIPELINE_MANIFEST_RELEASE_VERSION)
 # Directory to put manifest in
@@ -39,9 +41,11 @@ PIPELINE_MANIFEST_RETAG_BRANCH ?= quay-retag
 PIPELINE_MANIFEST_LATEST_BRANCH ?= 2.0-edge
 # The Z release of the pipeline to use for grabbing the latest manifest file
 PIPELINE_MANIFEST_LATEST_Z_RELEASE ?= 2.0.0
-PIPELINE_MANIFEST_REMOTE_REPO ?= quay.io/open-cluster-management
+# If GitHub and Quay org names diverge, this is where it changes
+PIPELINE_MANIFEST_QUAY_ORG ?= $(PIPELINE_MANIFEST_ORG)
+PIPELINE_MANIFEST_REMOTE_REPO ?= quay.io/$(PIPELINE_MANIFEST_QUAY_ORG)
 PIPELINE_MANIFEST_REMOTE_REPO_SRC ?= $(PIPELINE_MANIFEST_REMOTE_REPO)
-PIPELINE_MANIFEST_REMOTE_REPO_DST ?= quay.io/open-cluster-management
+PIPELINE_MANIFEST_REMOTE_REPO_DST ?= quay.io/$(PIPELINE_MANIFEST_QUAY_ORG)
 
 PIPELINE_MANIFEST_COMPONENT_SUFFIX ?= $(PIPELINE_MANIFEST_COMPONENT_SHA256)
 
@@ -67,8 +71,8 @@ PIPELINE_MANIFEST_GIT_BRANCH ?= $(PIPELINE_MANIFEST_RELEASE_VERSION)-$(PROMOTE_F
 PIPELINE_MANIFEST_RETAG_REPO ?= quay
 
 DATETIME_VAR := $(shell (date +%Y-%m-%d-%H-%M-%S))
-Z_RELEASE_VERSION ?= $(shell curl -H "Authorization: token ${GITHUB_TOKEN}" -H "Accept: application/vnd.github.v3.raw" https://raw.githubusercontent.com/open-cluster-management/release/${PIPELINE_MANIFEST_BRANCH}/Z_RELEASE_VERSION)
-	
+Z_RELEASE_VERSION ?= $(shell curl -H "Authorization: token ${GITHUB_TOKEN}" -H "Accept: application/vnd.github.v3.raw" https://raw.githubusercontent.com/${PIPELINE_MANIFEST_ORG}/release/${PIPELINE_MANIFEST_BRANCH}/Z_RELEASE_VERSION)
+
 
 .PHONY: pipeline-manifest/_datetime_gen
 # Factory method for storing datetime variable
@@ -258,8 +262,8 @@ pipeline-manifest/_validate-tag: %_validate-tag:
 .PHONY: pipeline-manifest/_retag
 # Validate and retag all images or git repos identified in manifest
 pipeline-manifest/_retag: %_retag:
-	@python3 $(BUILD_HARNESS_EXTENSIONS_PATH)/modules/pipeline-manifest/bin/parser.py $(PIPELINE_MANIFEST_FILE_NAME).json $(TAG) true $(PIPELINE_MANIFEST_RETAG_REPO) $(PIPELINE_MANIFEST_SHA_RELEASE_VERSION)
-	@python3 $(BUILD_HARNESS_EXTENSIONS_PATH)/modules/pipeline-manifest/bin/parser.py $(PIPELINE_MANIFEST_FILE_NAME).json $(TAG) false $(PIPELINE_MANIFEST_RETAG_REPO) $(PIPELINE_MANIFEST_SHA_RELEASE_VERSION)
+	@python3 $(BUILD_HARNESS_EXTENSIONS_PATH)/modules/pipeline-manifest/bin/parser.py $(PIPELINE_MANIFEST_FILE_NAME).json $(TAG) true $(PIPELINE_MANIFEST_RETAG_REPO) $(PIPELINE_MANIFEST_SHA_RELEASE_VERSION) $(PIPELINE_MANIFEST_REPO) $(PIPELINE_MANIFEST_ORG) $(PIPELINE_PRODUCT_PREFIX)
+	@python3 $(BUILD_HARNESS_EXTENSIONS_PATH)/modules/pipeline-manifest/bin/parser.py $(PIPELINE_MANIFEST_FILE_NAME).json $(TAG) false $(PIPELINE_MANIFEST_RETAG_REPO) $(PIPELINE_MANIFEST_SHA_RELEASE_VERSION) $(PIPELINE_MANIFEST_REPO) $(PIPELINE_MANIFEST_ORG) $(PIPELINE_PRODUCT_PREFIX)
 
 .PHONY: pipeline-manifest/_get_latest_manifest
 # Get the latest manifest file in the snapshots directory of the pipeline repo on the PIPELINE_MANIFEST_LATEST_BRANCH branch (i.e. x.y-edge or x.y-stable) specific to a Z-release

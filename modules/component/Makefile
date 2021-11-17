@@ -10,7 +10,7 @@ COMPONENT_VERSION ?= $(shell cat COMPONENT_VERSION 2> /dev/null)
 COMPONENT_TAG_EXTENSION ?= -${PULL_BASE_SHA}
 
 # Build the details for the remote destination repo for the image
-COMPONENT_DOCKER_REPO ?= quay.io/open-cluster-management
+COMPONENT_DOCKER_REPO ?= quay.io/${PIPELINE_MANIFEST_QUAY_ORG}
 
 # Variables Requred by different component types:
 #---helmoperator---#

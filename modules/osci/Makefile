@@ -18,7 +18,7 @@ OSCI_RELEASE_VERSION ?= $(subst release-,,$(OSCI_COMPONENT_BRANCH))
 OSCI_RELEASE_SHA_VERSION ?= $(OSCI_RELEASE_VERSION)
 
 OSCI_PIPELINE_SITE ?= github.com
-OSCI_PIPELINE_ORG ?= open-cluster-management
+OSCI_PIPELINE_ORG ?= $(PIPELINE_MANIFEST_ORG)
 OSCI_PIPELINE_REPO ?= pipeline
 OSCI_PIPELINE_STAGE ?= integration
 OSCI_PIPELINE_RETAG_BRANCH ?= quay-retag
@@ -34,7 +34,7 @@ OSCI_IMAGE_ALIAS_BASENAME ?= image-alias
 OSCI_IMAGE_ALIAS_FILENAME ?= $(OSCI_IMAGE_ALIAS_BASENAME).json
 OSCI_MANIFEST_SNAPSHOT_DIR ?= snapshots
 
-OSCI_IMAGE_REMOTE_REPO ?= quay.io/open-cluster-management
+OSCI_IMAGE_REMOTE_REPO ?= $(PIPELINE_MANIFEST_REMOTE_REPO)
 OSCI_IMAGE_REMOTE_REPO_SRC ?= $(OSCI_IMAGE_REMOTE_REPO)
 OSCI_IMAGE_REMOTE_REPO_DST ?= $(OSCI_IMAGE_REMOTE_REPO)
 
@@ -52,7 +52,7 @@ OSCI_SORT_QUERY ?= . | sort_by(.["image-name"])
 
 OSCI_DATETIME := $(shell (date +%Y-%m-%d-%H-%M-%S))
 
-OSCI_Z_RELEASE_VERSION ?= $(shell curl -H "Authorization: token ${GITHUB_TOKEN}" -H "Accept: application/vnd.github.v3.raw" https://raw.githubusercontent.com/open-cluster-management/release/${OSCI_COMPONENT_BRANCH}/Z_RELEASE_VERSION)
+OSCI_Z_RELEASE_VERSION ?= $(shell curl -H "Authorization: token ${GITHUB_TOKEN}" -H "Accept: application/vnd.github.v3.raw" https://raw.githubusercontent.com/$(OSCI_PIPELINE_ORG)/release/${OSCI_COMPONENT_BRANCH}/Z_RELEASE_VERSION)
 
 
 .PHONY: osci/_datetime_gen
